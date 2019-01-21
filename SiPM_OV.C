@@ -85,12 +85,13 @@ void SiPM_OV()
         //vs OV
         funcPDE[iSiPM]     = new TF1 (Form("funcPDE_%d", iSiPM),"[4]*([0]+ [1]*x + [2]*x*x + [3]*x*x*x)", 0, 5);
         funcCurrent[iSiPM] = new TF1 (Form("funcCurrent_%d", iSiPM),"[4]*([0]+ [1]*x + [2]*x*x + [3]*x*x*x)", 0, 5);
-        funcDCR[iSiPM]     = new TF1 (Form("funcDCR_%d", iSiPM),"[0]+ [1]*x + [2]*x*x + [3]*x*x*x", 0, 5);        
+//         funcDCR[iSiPM]     = new TF1 (Form("funcDCR_%d", iSiPM),"[0]+ [1]*x + [2]*x*x + [3]*x*x*x", 0, 5);        
         funcGain[iSiPM]    = new TF1 (Form("funcGain_%d", iSiPM),"[0]+[1]*x", 0, 5);        
         funcENC[iSiPM]     = new TF1 (Form("funcENC_%d", iSiPM),"[0] + [1]*x + [2]*x*x", 0, 5);
     }
     
-        TGraphErrors* gLYSO_emission = new TGraphErrors("LYSO_emission_CPI_2777.txt");
+    //LYSO input emission spectrum
+    TGraphErrors* gLYSO_emission = new TGraphErrors("LYSO_emission_CPI_2777.txt");
     float max_emission = gLYSO_emission->GetHistogram()->GetMaximum();
     
     TGraphErrors* gLYSO_emission_norm  = new TGraphErrors();
@@ -101,7 +102,32 @@ void SiPM_OV()
         gLYSO_emission_norm->SetPoint(iPoint, x, y/max_emission*1.1);
     }
     
+    //LYSO input transmittance 1 cm
+    TGraphErrors* gLYSO_transmittance = new TGraphErrors("3454_LYSO_long_transmission.txt");
+    max_emission = gLYSO_transmittance->GetHistogram()->GetMaximum();
     
+    TGraphErrors* gLYSO_transmittance_norm  = new TGraphErrors();
+    for (int iPoint = 0; iPoint < gLYSO_transmittance->GetN(); iPoint++)
+    {
+        double_t x, y;    
+        gLYSO_transmittance->GetPoint(iPoint, x, y);
+        gLYSO_transmittance_norm->SetPoint(iPoint, x, y/max_emission*1.3);
+    }
+    
+    
+//     std::string output_folder = "./public_optimum_OV_sqrtN/";
+    std::string output_folder = "./output/public_optimum_OV_N/";
+//     std::string output_folder = "./temp/";
+    std::string output_sipm_input = "./output/public_inputs/";
+
+    TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_4monthsRT.root", "RECREATE");    
+//     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_1.root", "RECREATE");
+//     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_2.root", "RECREATE");
+//     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_3.root", "RECREATE");
+//     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_temp.root", "RECREATE");
+    
+    string outdaq;
+    const char * daqfile;
     
     TCanvas * cComparePDE_vsWL = new TCanvas ("cComparePDE_vsWL", "cComparePDE_vsWL", 600, 600);    
     funcPDE_vsWL[0]->Draw();
@@ -126,6 +152,12 @@ void SiPM_OV()
     gLYSO_emission_norm->SetLineStyle(7);
     gLYSO_emission_norm->Draw("same L");
     
+    gLYSO_transmittance_norm->SetLineColor(kCyan+1);
+//     gLYSO_emission_norm->SetLineColor(Blue+1);
+    gLYSO_transmittance_norm->SetLineWidth(2);
+    gLYSO_transmittance_norm->SetLineStyle(7);
+    gLYSO_transmittance_norm->Draw("same L");
+    
     TLegend * legSiPMs;
     legSiPMs = new TLegend(0.15,0.7,0.55,0.88,NULL,"brNDC");
     legSiPMs->SetBorderSize(0);
@@ -140,7 +172,13 @@ void SiPM_OV()
     legSiPMs->Draw();
     
     legSiPMs->AddEntry(gLYSO_emission_norm, "LYSO emission spectrum", "lp");
+    legSiPMs->AddEntry(gLYSO_transmittance_norm, "LYSO transmittance", "lp");
     legSiPMs->Draw();
+    
+    outdaq = Form("%sPDE_vs_WL.png", output_sipm_input.c_str());
+    daqfile = outdaq.c_str();
+    cComparePDE_vsWL->cd();
+    cComparePDE_vsWL->SaveAs(daqfile);
     
     //convolute PDE correction coefficient: integral of PDE / maximum PDE
     float integral_pde[NSIPM];
@@ -185,16 +223,20 @@ void SiPM_OV()
     
         
     //last parameter is normalization to current/mm²/fb-1 in uA
-    float anneal_coeff = 1.4;  //additional annealing equivalent to 200 days at RT
+    float anneal_coeff = 1.42;  //additional annealing equivalent to 100 days at RT
     
-    // tot DCR with 2 weeks/year --> 57 GHz         --> 1
-    // tot DCR with 4 months/year --> 45 GHz        --> 1.3
-    // tot DCR permanent only component --> 30 GHz  --> 1.9
-    double insitu_recovery = 1.;
+    // tot DCR no annealing       --> 108 GHz @1.5V  --> 0.5
+    // tot DCR with 2 weeks/year  --> 54 GHz @1.5V   --> 1
+    // tot DCR with 4 weeks/year  --> 50 GHz @1.5V   --> 1.08
+    // tot DCR with 4 months/year --> 43 GHz @1.5V   --> 1.26
+    // tot DCR permanent only component --> 27 GHz   --> 2.0
+    double insitu_recovery = 1.26;  //
     
     
     
     float normal_current = 200/2.1/4000./9./anneal_coeff/insitu_recovery;
+//     normal_current = 1;
+    
     
 //     float normal_current = 1.;
     std::cout << "normalization of current = " << normal_current  << std::endl;
@@ -228,20 +270,45 @@ void SiPM_OV()
 
     //define inputs
     float Vbr[NSIPM];
-    Vbr[0] = 66.3;        
-    Vbr[1] = 38.0;        
-    Vbr[2] = 36.3;        
+    Vbr[0] = 63.;        //Vb at -30°C against Vb at 21°C --> 66V
+    Vbr[1] = 35.8;       //                               --> 38   
+    Vbr[2] = 34.2;       //                               --> 37.7     
     
-    float maxPower = 50;    //mW / channel    
-    int nChannels  = 500000; //total BTL number of channels
+    float maxPower      = 50;    //mW / channel    
+    int nChannels       = 500000; //total BTL number of channels
     
-    float maxPower_TP = 40;    //mW / channel
-    int nChannels_TP  = 250000; //total BTL number of channels
+    float maxPower_TP   = 40;    //mW / channel
+    int nChannels_TP    = 250000; //total BTL number of channels
     
-    float LO = 16000/0.4;    // light output at 40% PDE
-    float LO_red = 16000/0.4/1.4;    // assuming 3x3 mm² SiPM on 11.5x11.5 tile
+    float Edep          = 5.5; // MeV average slant thickness for muons 0.8-10 GeV
+    float LY            = 40000;
+    float LCE           = 0.15;  
     
-    float decay = 40000;
+    float Edep_at_TB    = 3.0;
+    float PDE_at_TB     = 0.37;
+    float LO            = LY*LCE*Edep;        // reference light output assumed for the time resolution "sigma_phot_ref"
+    float LO_red        = LY*LCE*Edep/1.4;    // assuming 3x3 mm² SiPM on 11.5x11.5 tile
+    
+    float sigma_phot_TB = 43;
+//     float alpha         = 0.5;
+//     float sigma_phot_ref= sigma_phot_TB*pow(3/Edep, alpha);
+    float sigma_phot_ref= sigma_phot_TB*sqrt(3/Edep);
+    
+    float Nphe_DCR_ref  = 9000; // re
+    float DCR_ref       = 20;
+    float sigma_DCR_20  = 30;
+    
+    float sigma_clock   = 15;
+    float sigma_digi    = 6;
+    float sigma_elect   = 7;
+    
+    
+    //define steps for OV scan
+    int NOVS = 660;
+    float ov_step = 0.005;
+    float min_ov = 0.5;
+    
+    float bias_ov = 1.5;    // reference constant bias
                 
                 
     std::cout << "drawing input plots..." << std::endl;
@@ -249,7 +316,7 @@ void SiPM_OV()
     TCanvas * cComparePDE = new TCanvas ("cComparePDE", "cComparePDE", 600, 600);
     funcPDE[0]->Draw();
     funcPDE[0]->GetXaxis()->SetTitle("V-V_{br} [V]");
-    funcPDE[0]->GetYaxis()->SetTitle("PDE [%]");
+    funcPDE[0]->GetYaxis()->SetTitle("PDE for LYSO emission [%]");
     funcPDE[0]->GetXaxis()->SetTitleSize(0.05);
     funcPDE[0]->GetYaxis()->SetTitleSize(0.05);
     funcPDE[0]->GetXaxis()->SetRangeUser(0, 5);
@@ -276,6 +343,11 @@ void SiPM_OV()
     for (int iSiPM = 0; iSiPM< NSIPM; iSiPM++) legSiPMs ->AddEntry(funcPDE[iSiPM], sipm_name[iSiPM].c_str(), "lp");
     legSiPMs->Draw();
     
+    outdaq = Form("%sPDE_vs_WL.png", output_sipm_input.c_str());
+    daqfile = outdaq.c_str();
+    cComparePDE_vsWL->cd();
+    cComparePDE_vsWL->SaveAs(daqfile);
+    
     
     TCanvas * cCompareCurrent = new TCanvas ("cCompareCurrent", "cCompareCurrent", 600, 600);
     funcCurrent[0]->Draw();
@@ -297,6 +369,11 @@ void SiPM_OV()
     gPad->SetLogy();
     gPad->SetGridx();
     
+    outdaq = Form("%sCurrent_vs_OV.png", output_sipm_input.c_str());
+    daqfile = outdaq.c_str();
+    cCompareCurrent->cd();
+    cCompareCurrent->SaveAs(daqfile);
+    
     
     TCanvas * cCompareGain = new TCanvas ("cCompareGain", "cCompareGain", 600, 600);
     funcGain[0]->Draw();
@@ -316,6 +393,11 @@ void SiPM_OV()
     funcGain[2]->SetLineColor(kRed+1);    
     legSiPMs->Draw();
     gPad->SetGridx();
+    
+    outdaq = Form("%sGain_vs_OV.png", output_sipm_input.c_str());
+    daqfile = outdaq.c_str();
+    cCompareGain->cd();
+    cCompareGain->SaveAs(daqfile);
     
     
     TCanvas * cCompareENC = new TCanvas ("cCompareENC", "cCompareENC", 600, 600);
@@ -338,128 +420,11 @@ void SiPM_OV()
     gPad->SetGridx();
     gPad->SetGridy();
     
+    outdaq = Form("%sENC_vs_OV.png", output_sipm_input.c_str());
+    daqfile = outdaq.c_str();
+    cCompareENC->cd();
+    cCompareENC->SaveAs(daqfile);
     
-    
-
-        
-    
-    
-    /*
-    gPDE_vs_WL_norm[0]->Draw("same LPE");
-    gPDE_vs_WL_norm[0]->SetLineColor(kBlack);   
-    gPDE_vs_WL_norm[1]->Draw("same LPE");
-    gPDE_vs_WL_norm[1]->SetLineColor(kGreen+2);   
-    gPDE_vs_WL_norm[2]->Draw("same LPE");
-    gPDE_vs_WL_norm[2]->SetLineColor(kRed+1);   */
-    
-    /*
-    
-    const int NBIAS = 7;
-    
-    float bias[NBIAS];  //bias hamamatsu
-    bias[0] = 0;
-    bias[1] = 1;
-    bias[2] = 2;
-    bias[3] = 3;
-    bias[4] = 4;
-    bias[5] = 5;
-    bias[6] = 8;
-    
-    
-    std::map<double, double> PDE[NSIPM];
-    //PDE S12572-015C
-//     PDE[0][0.0] = 0.0;
-    PDE[0][1.0] = 0.05;
-    PDE[0][1.3] = 0.105;
-    PDE[0][1.5] = 0.13;
-    PDE[0][2.0] = 0.17;
-    PDE[0][3.0] = 0.25;
-    PDE[0][4.0] = 0.315;
-    PDE[0][5.0] = 0.36;
-    PDE[0][6.0] = 0.39;
-    
-    //PDE - HDR2-015
-//     PDE[1][0.0] = 0.0;
-    PDE[1][1.0] = 0.15;
-    PDE[1][1.25] = 0.20;
-    PDE[1][1.5] = 0.23;
-    PDE[1][2.0] = 0.28;
-    PDE[1][2.25] = 0.30;    
-    PDE[1][3.0] = 0.345;
-    PDE[1][4.25] = 0.38;
-    PDE[1][6.0] = 0.42;
-    PDE[1][7.0] = 0.43;
-    
-    //PDE - FBK thin-epi
-//     PDE[2][0.2] = 0.0;
-    PDE[2][0.7] = 0.065;
-    PDE[2][1.0] = 0.10;
-    PDE[2][1.5] = 0.14;
-    PDE[2][2.0] = 0.19;
-    PDE[2][3.0] = 0.25;
-//     PDE[2][3.0] = 0.345;
-    PDE[2][4.5] = 0.33;
-    PDE[2][6.0] = 0.37;
-    PDE[2][7.6] = 0.40;
-    
- 
-    std::map<double, double> current[NSIPM]; //-30°C, 5e13 //https://indico.cern.ch/event/705488/contributions/2896500/attachments/1600653/2537698/HE-SiPM-after-5E13n_ENC-measurements-freezer-v4.pdf
-    current[0][0.5] = 18.6;     //uA
-    current[0][1.0] = 61.8;
-    current[0][1.5] = 138.5;
-    current[0][2.0] = 262.3;
-    current[0][2.5] = 460.7;
-    current[0][3.0] = 768.6;
-    current[0][6.0] = 6000;
-        
-    current[1][0.5] = 18.6;     //uA
-    current[1][1.0] = 61.8;
-    current[1][1.5] = 138.5;
-    current[1][2.0] = 262.3;
-    current[1][2.5] = 460.7;
-    current[1][3.0] = 768.6;
-    current[1][6.0] = 6000;
-    
-    current[2][0.5] = 18.6;     //uA
-    current[2][1.0] = 61.8;
-    current[2][1.5] = 138.5;
-    current[2][2.0] = 262.3;
-    current[2][2.5] = 460.7;
-    current[2][3.0] = 768.6;
-    current[2][6.0] = 6000;
-    
-
-    
-    for (auto ov : current[0])
-    {
-        current[0][ov.first] = ov.second / 6.16 * 4 / 4000       / annealing_coeff;    //normalize to 2e14 and to 1 mm² and to 1 fb-1
-        current[1][ov.first] = ov.second / 6.16 * 4 / 4000 *2.37 / annealing_coeff;    //normalize to 2e14 and to 1 mm² and to 1 fb-1
-        current[2][ov.first] = ov.second / 6.16 * 4 / 4000 *1.74 / annealing_coeff;    //normalize to 2e14 and to 1 mm² and to 1 fb-1
-    }
-    for (auto ov : current[1])
-    {
-//         current[1][ov.first] = ov.second / 8.55 * 100 / 4000;    //normalize to 2e12 and to 1 mm² and to 1 fb-1
-    }
-    
-    std::map<double, double> gain[NSIPM];
-    gain[0][2] = 1.83e5;
-    gain[0][5] = 4.15e5;
-    
-    gain[1][2] = 2.33e5;
-    gain[1][4] = 4.24e5;
-    gain[1][6] = 6.11e5;
-    
-    gain[2][1.5] = 2.e5;
-    gain[2][2.5] = 3.1e5;
-    gain[2][5.5] = 6.1e5;
-*/
-    
-//     for (auto ov : gain[0])
-//     {
-//         gain[0][ov.first] = ov.second;
-//     }
-    
-
 
     
     TGraphErrors * gPDE_vs_OV[NSIPM];
@@ -475,137 +440,6 @@ void SiPM_OV()
         gGain_vs_OV[iSiPM]    = new TGraphErrors ();        
         gDCR_vs_OV[iSiPM]     = new TGraphErrors ();        
     }
-    
-    /*
-    //preparing graphs
-    for (int iSiPM = 0; iSiPM<NSIPM; iSiPM++)
-    {
-        int iBias = 0;
-        for (auto ov : PDE[iSiPM])
-        {
-            gPDE_vs_OV[iSiPM]->SetPoint(iBias, ov.first, ov.second);            
-            iBias++;
-        }
-        
-        iBias = 0;
-        for (auto ov : current[iSiPM])
-        {
-            gCurrent_vs_OV[iSiPM]->SetPoint(iBias, ov.first, ov.second);
-            iBias++;
-        }
-        
-        iBias = 0;
-        for (auto ov : gain[iSiPM])
-        {
-            gGain_vs_OV[iSiPM]->SetPoint(iBias, ov.first, ov.second);
-            iBias++;
-        }
-    }
-    
-    
-    TF1 * fitPDE[NSIPM];
-    TF1 * fitCurrent[NSIPM];
-    TF1 * fitGain[NSIPM];
-    TF1 * fitDCR[NSIPM];
-    
-    for (int iSiPM = 0; iSiPM< NSIPM; iSiPM++)
-    {
-        
-        fitPDE[iSiPM] = new TF1 (Form("fitPDE_%d", iSiPM), "pol4");
-        fitPDE[iSiPM]->SetLineColor(iSiPM+1);
-        gPDE_vs_OV[iSiPM]->Fit(fitPDE[iSiPM]);
-        
-        fitCurrent[iSiPM] = new TF1 (Form("fitCurrent_%d", iSiPM), "pol3");
-        fitCurrent[iSiPM]->SetLineColor(iSiPM+1);
-        gCurrent_vs_OV[iSiPM]->Fit(fitCurrent[iSiPM]);
-        
-        fitGain[iSiPM] = new TF1 (Form("fitGain_%d", iSiPM), "pol1", 0, 7);
-        fitGain[iSiPM]->SetLineColor(iSiPM+1);
-        gGain_vs_OV[iSiPM]->Fit(fitGain[iSiPM]);
-        
-        fitDCR[iSiPM] = new TF1 (Form("fitDCR_%d", iSiPM), "pol1", 0, 7);
-        fitDCR[iSiPM]->SetLineColor(iSiPM+1);
-    }
-    
-    
-    
-    
-    
-    
-    
-    TCanvas * cPDE_vs_OV = new TCanvas ("cPDE_vs_OV", "cPDE_vs_OV", 600, 600);
-    gPDE_vs_OV[0]->Draw("APE");
-//     gPDE_vs_OV[0]->SetTitle(sipm_name[0].c_str());
-    gPDE_vs_OV[0]->GetXaxis()->SetTitle("bias OV [V]");
-    gPDE_vs_OV[0]->GetYaxis()->SetTitle("PDE");
-    gPDE_vs_OV[0]->GetXaxis()->SetTitleSize(0.05);
-    gPDE_vs_OV[0]->GetYaxis()->SetTitleSize(0.05);
-    gPDE_vs_OV[0]->GetXaxis()->SetRangeUser(0, 6);
-    gPDE_vs_OV[0]->GetXaxis()->SetLimits(0, 6);
-    gPDE_vs_OV[0]->GetYaxis()->SetRangeUser(0, 0.5);    
-    gPDE_vs_OV[0]->SetMarkerStyle(20);
-    
-    for (int iSiPM = 0; iSiPM < NSIPM; iSiPM++)
-    {
-        gPDE_vs_OV[iSiPM]->SetLineColor(iSiPM+1);
-        gPDE_vs_OV[iSiPM]->SetMarkerColor(iSiPM+1);
-        gPDE_vs_OV[iSiPM]->SetMarkerStyle(20);
-        gPDE_vs_OV[iSiPM]->Draw("same PE");
-    }
-    
-
-    
-    
-    
-    TCanvas * cCurrent_vs_OV = new TCanvas ("cCurrent_vs_OV", "cCurrent_vs_OV", 600, 600);
-    gCurrent_vs_OV[0]->Draw("APE");
-//     gCurrent_vs_OV[0]->SetTitle(sipm_name[0].c_str());
-    gCurrent_vs_OV[0]->GetXaxis()->SetTitle("bias OV [V]");
-    gCurrent_vs_OV[0]->GetYaxis()->SetTitle("Current / mm^{2} / fb^{-1} [uA]");
-    gCurrent_vs_OV[0]->GetXaxis()->SetTitleSize(0.05);
-    gCurrent_vs_OV[0]->GetYaxis()->SetTitleSize(0.05);
-    gCurrent_vs_OV[0]->GetXaxis()->SetRangeUser(0, 8);
-    gCurrent_vs_OV[0]->SetMaximum(4);    
-    gCurrent_vs_OV[0]->SetMarkerStyle(20);    
-    gPad->SetLogy();
-    
-    for (int iSiPM = 0; iSiPM < NSIPM; iSiPM++)
-    {
-        gCurrent_vs_OV[iSiPM]->SetLineColor(iSiPM+1);
-        gCurrent_vs_OV[iSiPM]->SetMarkerColor(iSiPM+1);
-        gCurrent_vs_OV[iSiPM]->SetMarkerStyle(20);
-        gCurrent_vs_OV[iSiPM]->Draw("same PE");
-    }
-    legSiPMs->Draw();
-    
-    
-    TCanvas * cGain_vs_OV = new TCanvas ("cGain_vs_OV", "cGain_vs_OV", 600, 600);
-    
-    gGain_vs_OV[0]->Draw("APE");
-    
-//     gGain_vs_OV[0]->SetTitle(sipm_name[0].c_str());
-    gGain_vs_OV[0]->GetXaxis()->SetTitle("bias OV [V]");
-    gGain_vs_OV[0]->GetYaxis()->SetTitle("Gain");
-    gGain_vs_OV[0]->GetXaxis()->SetTitleSize(0.05);
-    gGain_vs_OV[0]->GetYaxis()->SetTitleSize(0.05);
-    gGain_vs_OV[0]->GetXaxis()->SetRangeUser(0, 8);
-    gGain_vs_OV[0]->GetXaxis()->SetLimits(0, 8);
-    gGain_vs_OV[0]->GetYaxis()->SetRangeUser(0, 10e5);    
-    gGain_vs_OV[0]->SetMarkerStyle(20);    
-//     gPad->SetLogy();
-    
-    for (int iSiPM = 0; iSiPM < NSIPM; iSiPM++)
-    {
-        fitGain[iSiPM]->Draw("same");
-        gGain_vs_OV[iSiPM]->SetLineColor(iSiPM+1);
-        gGain_vs_OV[iSiPM]->SetMarkerColor(iSiPM+1);
-        gGain_vs_OV[iSiPM]->SetMarkerStyle(20);
-        gGain_vs_OV[iSiPM]->Draw("same PE");
-    }
-    legSiPMs->Draw();
-    
-    
-    */
     
     
     //calculation of DCR vs OV        
@@ -645,9 +479,10 @@ void SiPM_OV()
     
     legSiPMs->Draw();
     
-    
-    
-    
+    outdaq = Form("%sDCR_vs_OV.png", output_sipm_input.c_str());
+    daqfile = outdaq.c_str();
+    cDCR_vs_OV->cd();
+    cDCR_vs_OV->SaveAs(daqfile);
     
     
     //and now extrapolations
@@ -741,16 +576,6 @@ void SiPM_OV()
     TGraphErrors * gElectronics_double  = new TGraphErrors ();
     
     
-    float sigma_clock = 15;
-    float sigma_digi  = 6;
-    float sigma_elect = 7;
-    
-    
-    
-    int NOVS = 660;
-    float ov_step = 0.005;
-    float min_ov = 0.8;
-    
     for (int iLumi = 0; iLumi < TOTLUMI; iLumi++)
     {
     
@@ -783,12 +608,12 @@ void SiPM_OV()
         gElectronics ->SetPoint(iLumi, iLumi, sigma_elect);
         
         gDigitization_double->SetPoint(iLumi, iLumi, sigma_digi/sqrt(2));
-        gClock_double       ->SetPoint(iLumi, iLumi, sigma_clock/sqrt(2));
+        gClock_double       ->SetPoint(iLumi, iLumi, sigma_clock);
         gElectronics_double ->SetPoint(iLumi, iLumi, sigma_elect/sqrt(2));
         
         for (int iSiPM = 0; iSiPM< NSIPM; iSiPM++)
         {
-            float bias_ov = 2;
+            
             
             float current = iLumi*funcCurrent[iSiPM]->Eval(bias_ov)*sipm_area;            //in uA
             float DCR     = current/1e6 / (1.6e-19) / funcGain[iSiPM]->Eval(bias_ov)/1e9;  //current from uA to A
@@ -799,9 +624,11 @@ void SiPM_OV()
             double signal = funcPDE[iSiPM]->Eval(bias_ov)/100*(1.-busy_cells/1.) * LO;
                 
 //             float temp_SNR     = signal / sqrt(DCR);                                            
-            double sigma_phot = 32*sqrt(LO*0.4/signal);                    //ps - empirical at 40% PDE                        
+            double sigma_phot = sigma_phot_ref  *sqrt(LO*PDE_at_TB/signal);                    //ps - empirical at 40% PDE                        
             
-            double sigma_DCR = 34*sqrt(DCR/20)*sqrt(9000/signal); // ps - empirical at 9000 phe            
+            double sigma_DCR = sigma_DCR_20*sqrt(DCR/DCR_ref)*sqrt(Nphe_DCR_ref/signal); // ps - empirical at 9000 phe            
+//             double sigma_DCR = 34*sqrt(DCR/20)*9000/signal; // 1/N
+            
             double CTR = sqrt(pow(sigma_phot,2) + pow(sigma_DCR,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
             
             float power = current*(bias_ov+Vbr[iSiPM])/1e3; //converting current to mA
@@ -877,42 +704,46 @@ void SiPM_OV()
                 double temp_busy_cells = temp_DCR/sipm_area*RC[iSiPM]*2./pow(1000./spad_size[iSiPM],2);
                 if (temp_busy_cells >1) busy_cells = 1.;
                 
-                double temp_signal = temp_PDE*(1.-temp_busy_cells/1.) * LO;
-                double temp_signal_3x3 = temp_PDE*(1.-temp_busy_cells/1.) * LO_red;
-                double temp_signal_TP2x2 = temp_PDE*(1.-temp_busy_cells/1.) * LO_red/1.5;
-                double temp_signal_2x2 = temp_PDE*(1.-temp_busy_cells/1.) * LO/1.5;
-                double temp_signal_2x2_bar = temp_PDE*(1.-temp_busy_cells/1.) * LO/2.0;
+                double temp_signal          = temp_PDE*(1.-temp_busy_cells/1.) * LO;
+                double temp_signal_3x3      = temp_PDE*(1.-temp_busy_cells/1.) * LO_red;
+                double temp_signal_TP2x2    = temp_PDE*(1.-temp_busy_cells/1.) * LO_red/1.5;
+                double temp_signal_2x2      = temp_PDE*(1.-temp_busy_cells/1.) * LO/1.5;
+                double temp_signal_2x2_bar  = temp_PDE*(1.-temp_busy_cells/1.) * LO/2.0;
                 
                 double temp_ele_signal = temp_signal*funcGain[iSiPM]->Eval(temp_ov);
                 
 //                 float temp_SNR     = temp_signal / sqrt(temp_DCR);
-                double sigma_phot = 32*sqrt(LO*0.4/temp_signal);                    //ps - empirical at 40% PDE
-                double sigma_phot_3x3 = 32*sqrt(LO*0.4/temp_signal_3x3);                    //ps - empirical at 40% PDE
-                double sigma_phot_2x2 = 32*sqrt(LO*0.4/temp_signal_2x2);                    //ps - empirical at 40% PDE
-                double sigma_phot_TP2x2 = 32*sqrt(LO*0.4/temp_signal_TP2x2);                    //ps - empirical at 40% PDE
-                double sigma_phot_2x2_bar = 32*sqrt(LO*0.4/temp_signal_2x2_bar);                    //ps - empirical at 40% PDE
+                double sigma_phot           = sigma_phot_ref*sqrt(LO*PDE_at_TB/temp_signal);                    //ps - empirical at 40% PDE
+                double sigma_phot_3x3       = sigma_phot_ref*sqrt(LO*PDE_at_TB/temp_signal_3x3);                    //ps - empirical at 40% PDE
+                double sigma_phot_2x2       = sigma_phot_ref*sqrt(LO*PDE_at_TB/temp_signal_2x2);                    //ps - empirical at 40% PDE
+                double sigma_phot_TP2x2     = sigma_phot_ref*sqrt(LO*PDE_at_TB/temp_signal_TP2x2);                    //ps - empirical at 40% PDE
+                double sigma_phot_2x2_bar   = sigma_phot_ref*sqrt(LO*PDE_at_TB/temp_signal_2x2_bar);                    //ps - empirical at 40% PDE
                 
                 //1/sqrt(Nphe) assumption
-                double sigma_DCR_TP4x4 = 34*sqrt(temp_DCR_TP4x4/20)*sqrt(9000/temp_signal);
-                double sigma_DCR_TP3x3 = 34*sqrt(temp_DCR/20)*sqrt(9000/temp_signal_3x3);
-                double sigma_DCR_TP2x2 = 34*sqrt(temp_DCR_2x2/20)*sqrt(9000/temp_signal_TP2x2);
-                double sigma_DCR = 34*sqrt(temp_DCR/20)*sqrt(9000/temp_signal);
-                double sigma_DCR_2x2 = 34*sqrt(temp_DCR_2x2/20)*sqrt(9000/temp_signal_2x2);
-                double sigma_DCR_2x2_bar = 34*sqrt(temp_DCR_2x2/20)*sqrt(9000/temp_signal_2x2_bar);
+                /*
+                double sigma_DCR_TP4x4      = sigma_DCR_20*sqrt(temp_DCR_TP4x4/DCR_ref) *sqrt(Nphe_DCR_ref/temp_signal);
+                double sigma_DCR_TP3x3      = sigma_DCR_20*sqrt(temp_DCR/DCR_ref)       *sqrt(Nphe_DCR_ref/temp_signal_3x3);
+                double sigma_DCR_TP2x2      = sigma_DCR_20*sqrt(temp_DCR_2x2/DCR_ref)   *sqrt(Nphe_DCR_ref/temp_signal_TP2x2);
+                double sigma_DCR            = sigma_DCR_20*sqrt(temp_DCR/DCR_ref)       *sqrt(Nphe_DCR_ref/temp_signal);
+                double sigma_DCR_2x2        = sigma_DCR_20*sqrt(temp_DCR_2x2/DCR_ref)   *sqrt(Nphe_DCR_ref/temp_signal_2x2);
+                double sigma_DCR_2x2_bar    = sigma_DCR_20*sqrt(temp_DCR_2x2/DCR_ref)   *sqrt(Nphe_DCR_ref/temp_signal_2x2_bar);
+                */
                 
                 //1/Nphe assumption
-//                 double sigma_DCR_TP = 34*sqrt(temp_DCR_TP4x4/20)*9000/temp_signal;
-//                 double sigma_DCR_TP3x3 = 34*sqrt(temp_DCR/20)*9000/temp_signal_3x3;
-//                 double sigma_DCR = 34*sqrt(temp_DCR/20)*9000/temp_signal;
-//                 double sigma_DCR_2x2 = 34*sqrt(temp_DCR_2x2/20)*9000/temp_signal_2x2;
-//                 double sigma_DCR_2x2_bar = 34*sqrt(temp_DCR_2x2/20)*9000/temp_signal_2x2_bar;
+                double sigma_DCR_TP4x4   = 34*sqrt(temp_DCR_TP4x4/20)*9000/temp_signal;
+                double sigma_DCR_TP3x3   = 34*sqrt(temp_DCR/20)*9000/temp_signal_3x3;
+                double sigma_DCR_TP2x2   = 34*sqrt(temp_DCR_2x2/20)*9000/temp_signal_TP2x2;
+                double sigma_DCR         = 34*sqrt(temp_DCR/20)*9000/temp_signal;
+                double sigma_DCR_2x2     = 34*sqrt(temp_DCR_2x2/20)*9000/temp_signal_2x2;
+                double sigma_DCR_2x2_bar = 34*sqrt(temp_DCR_2x2/20)*9000/temp_signal_2x2_bar;
                 
-                double temp_CTR_TP4x4 = sqrt(pow(sigma_phot,2) + pow(sigma_DCR_TP4x4,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
-                double temp_CTR_TP3x3 = sqrt(pow(sigma_phot_3x3,2) + pow(sigma_DCR,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
-                double temp_CTR_TP2x2 = sqrt(pow(sigma_phot_TP2x2,2) + pow(sigma_DCR_TP2x2,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
-                double temp_CTR = sqrt(pow(sigma_phot,2) + pow(sigma_DCR,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
-                double temp_CTR_2x2 = sqrt(pow(sigma_phot_2x2,2) + pow(sigma_DCR_2x2,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
-                double temp_CTR_2x2_bar = sqrt(pow(sigma_phot_2x2_bar/sqrt(2),2) + pow(sigma_DCR_2x2_bar/sqrt(2),2) + pow(sigma_digi/sqrt(2),2) +  pow(sigma_elect/sqrt(2),2) +  pow(sigma_clock,2) );
+                
+                double temp_CTR_TP4x4       = sqrt(pow(sigma_phot,2) + pow(sigma_DCR_TP4x4,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
+                double temp_CTR_TP3x3       = sqrt(pow(sigma_phot_3x3,2) + pow(sigma_DCR,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
+                double temp_CTR_TP2x2       = sqrt(pow(sigma_phot_TP2x2,2) + pow(sigma_DCR_TP2x2,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
+                double temp_CTR             = sqrt(pow(sigma_phot,2) + pow(sigma_DCR,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
+                double temp_CTR_2x2         = sqrt(pow(sigma_phot_2x2,2) + pow(sigma_DCR_2x2,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
+                double temp_CTR_2x2_bar         = sqrt(pow(sigma_phot_2x2_bar/sqrt(2),2) + pow(sigma_DCR_2x2_bar/sqrt(2),2) + pow(sigma_digi/sqrt(2),2) +  pow(sigma_elect/sqrt(2),2) +  pow(sigma_clock,2) );
                 
                 
                 if (true
@@ -994,13 +825,13 @@ void SiPM_OV()
                 
             }
             
-            if (best_CTR_TP4x4 < min_CTR_TP4x4)     min_CTR_TP4x4     = best_CTR_TP4x4;
-            if (best_CTR_TP3x3 < min_CTR_TP3x3)     min_CTR_TP3x3  = best_CTR_TP3x3;
-            if (best_CTR_TP2x2 < min_CTR_TP2x2)     min_CTR_TP2x2  = best_CTR_TP2x2;
-            if (best_CTR < min_CTR_Single)          min_CTR_Single = best_CTR;
-            if (best_CTR_2x2 < min_CTR_2x2)         min_CTR_2x2 = best_CTR_2x2;
-            if (best_CTR_double < min_CTR_Double)   min_CTR_Double = best_CTR_double;
-            if (best_CTR_double2x2 < min_CTR_Double2x2)   min_CTR_Double2x2 = best_CTR_double2x2;
+            if (best_CTR_TP4x4 < min_CTR_TP4x4)         min_CTR_TP4x4     = best_CTR_TP4x4;
+            if (best_CTR_TP3x3 < min_CTR_TP3x3)         min_CTR_TP3x3  = best_CTR_TP3x3;
+            if (best_CTR_TP2x2 < min_CTR_TP2x2)         min_CTR_TP2x2  = best_CTR_TP2x2;
+            if (best_CTR < min_CTR_Single)              min_CTR_Single = best_CTR;
+            if (best_CTR_2x2 < min_CTR_2x2)             min_CTR_2x2 = best_CTR_2x2;
+            if (best_CTR_double < min_CTR_Double)       min_CTR_Double = best_CTR_double;
+            if (best_CTR_double2x2 < min_CTR_Double2x2) min_CTR_Double2x2 = best_CTR_double2x2;
             
             if (best_CTR_TP4x4 > max_CTR_TP4x4)         max_CTR_TP4x4  = best_CTR_TP4x4;
             if (best_CTR_TP3x3 > max_CTR_TP3x3)         max_CTR_TP3x3  = best_CTR_TP3x3;
@@ -1056,6 +887,7 @@ void SiPM_OV()
         gOptimalCTR_Double_vs_Lumi_Ave  ->SetPointError(iLumi, 0, (max_CTR_Double-min_CTR_Double)/2.);
         gOptimalCTR_Double2x2_vs_Lumi_Ave  ->SetPointError(iLumi, 0, (max_CTR_Double2x2-min_CTR_Double2x2)/2.);
         */
+        
         //to fill with best time resolution
         gOptimalCTR_TP_vs_Lumi_Ave      ->SetPoint(iLumi, iLumi, min_CTR_TP4x4);
         gOptimalCTR_TP3x3_vs_Lumi_Ave   ->SetPoint(iLumi, iLumi, min_CTR_TP3x3);
@@ -1174,15 +1006,14 @@ void SiPM_OV()
 
     
     
-    
-    TCanvas * cCurrent_vs_Lumi = new TCanvas ("cCurrent_vs_Lumi", "cCurrent_vs_Lumi", 700, 600);
+    TCanvas * cCurrent_vs_Lumi = new TCanvas ("cCurrent_vs_Lumi", "cCurrent_vs_Lumi", 600, 500);
     gCurrent_vs_Lumi[0]->Draw("ALE");
     gCurrent_vs_Lumi[0]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
     gCurrent_vs_Lumi[0]->GetYaxis()->SetTitle("Current / SiPM [#muA]");
     gCurrent_vs_Lumi[0]->GetXaxis()->SetTitleSize(0.05);
     gCurrent_vs_Lumi[0]->GetYaxis()->SetTitleSize(0.05);
     gCurrent_vs_Lumi[0]->GetXaxis()->SetRangeUser(0, 4000);
-    gCurrent_vs_Lumi[0]->GetYaxis()->SetRangeUser(0, 3.5);
+    gCurrent_vs_Lumi[0]->GetYaxis()->SetRangeUser(0, 3500);
     gCurrent_vs_Lumi[1]->Draw("same LE");
     gCurrent_vs_Lumi[2]->Draw("same LE");
     gOptimalCurrent_vs_Lumi[0]->Draw("same LE");
@@ -1201,13 +1032,19 @@ void SiPM_OV()
  
     for (int iSiPM = 0; iSiPM<NSIPM; iSiPM++)
     {
-        leg ->AddEntry(gCurrent_vs_Lumi[iSiPM], Form("constant bias = +2V OV (%s)", sipm_name[iSiPM].c_str()), "lp");
+        leg ->AddEntry(gCurrent_vs_Lumi[iSiPM], Form("constant bias = +1.5V OV (%s)", sipm_name[iSiPM].c_str()), "lp");
         leg ->AddEntry(gOptimalCurrent_vs_Lumi[iSiPM], Form("optimized bias (%s)", sipm_name[iSiPM].c_str()), "lp");
     }
     leg->Draw();
+        
+    
+    outdaq = Form("%sCurrent_vs_Lumi.png", output_folder.c_str());
+    daqfile = outdaq.c_str();
+    cCurrent_vs_Lumi->cd();
+    cCurrent_vs_Lumi->SaveAs(daqfile);
     
     
-    TCanvas * cPower_vs_Lumi = new TCanvas ("cPower_vs_Lumi", "cPower_vs_Lumi", 700, 600);
+    TCanvas * cPower_vs_Lumi = new TCanvas ("cPower_vs_Lumi", "cPower_vs_Lumi", 600, 500);
     gPower_vs_Lumi[0]->Draw("ALE");
     gPower_vs_Lumi[0]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
     gPower_vs_Lumi[0]->GetYaxis()->SetTitle("Power / SiPM [mW]");
@@ -1222,8 +1059,13 @@ void SiPM_OV()
     gOptimalPower_vs_Lumi[2]->Draw("same LE");
     gPad->SetGridy();
     leg->Draw();
+    
+    outdaq = Form("%sPower_vs_Lumi.png", output_folder.c_str());
+    daqfile = outdaq.c_str();
+    cPower_vs_Lumi->cd();
+    cPower_vs_Lumi->SaveAs(daqfile);
 
-    TCanvas * cOV_vs_Lumi = new TCanvas ("cOV_vs_Lumi", "cOV_vs_Lumi", 700, 600);    
+    TCanvas * cOV_vs_Lumi = new TCanvas ("cOV_vs_Lumi", "cOV_vs_Lumi", 600, 500);    
     gOptimalOV_vs_Lumi[0]->Draw("ALE");
     gOptimalOV_vs_Lumi[0]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
     gOptimalOV_vs_Lumi[0]->GetYaxis()->SetTitle("Over Voltage [V]");
@@ -1238,8 +1080,13 @@ void SiPM_OV()
     gOptimalOV_vs_Lumi[2]->Draw("same LE");
     gPad->SetGridy();
     leg->Draw();
+    
+    outdaq = Form("%sOptimalOV_vs_Lumi.png", output_folder.c_str());
+    daqfile = outdaq.c_str();
+    cOV_vs_Lumi->cd();
+    cOV_vs_Lumi->SaveAs(daqfile);
 
-    TCanvas * cPDE_vs_Lumi = new TCanvas ("cPDE_vs_Lumi", "cPDE_vs_Lumi", 700, 600);
+    TCanvas * cPDE_vs_Lumi = new TCanvas ("cPDE_vs_Lumi", "cPDE_vs_Lumi", 600, 500);
     gOptimalPDE_vs_Lumi[0]->Draw("ALE");
     gOptimalPDE_vs_Lumi[0]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
     gOptimalPDE_vs_Lumi[0]->GetYaxis()->SetTitle("PDE");
@@ -1255,8 +1102,12 @@ void SiPM_OV()
     gPad->SetGridy();
     leg->Draw();
     
+    outdaq = Form("%sOptimalPDE_vs_Lumi.png", output_folder.c_str());
+    daqfile = outdaq.c_str();
+    cPDE_vs_Lumi->cd();
+    cPDE_vs_Lumi->SaveAs(daqfile);
     
-    TCanvas * cSignal_vs_Lumi = new TCanvas ("cSignal_vs_Lumi", "cSignal_vs_Lumi", 700, 600);
+    TCanvas * cSignal_vs_Lumi = new TCanvas ("cSignal_vs_Lumi", "cSignal_vs_Lumi", 600, 500);
     gOptimalSignal_vs_Lumi[0]->Draw("ALE");
     gOptimalSignal_vs_Lumi[0]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
     gOptimalSignal_vs_Lumi[0]->GetYaxis()->SetTitle("Signal [phe]");
@@ -1272,8 +1123,13 @@ void SiPM_OV()
     gPad->SetGridy();
     leg->Draw();
     
+    outdaq = Form("%sOptimalSignal_vs_Lumi.png", output_folder.c_str());
+    daqfile = outdaq.c_str();
+    cSignal_vs_Lumi->cd();
+    cSignal_vs_Lumi->SaveAs(daqfile);
     
-    TCanvas * cEleSignal_vs_Lumi = new TCanvas ("cEleSignal_vs_Lumi", "cEleSignal_vs_Lumi", 700, 600);
+    
+    TCanvas * cEleSignal_vs_Lumi = new TCanvas ("cEleSignal_vs_Lumi", "cEleSignal_vs_Lumi", 600, 500);
     gOptimalEleSignal_vs_Lumi[0]->Draw("ALE");
     gOptimalEleSignal_vs_Lumi[0]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
     gOptimalEleSignal_vs_Lumi[0]->GetYaxis()->SetTitle("Electric Signal [electrons]");
@@ -1289,7 +1145,12 @@ void SiPM_OV()
     gPad->SetGridy();
     leg->Draw();
     
-    TCanvas * cBusyCells_vs_Lumi = new TCanvas ("cBusyCells_vs_Lumi", "cBusyCells_vs_Lumi", 700, 600);
+    outdaq = Form("%sOptimalEleSignal_vs_Lumi.png", output_folder.c_str());
+    daqfile = outdaq.c_str();
+    cEleSignal_vs_Lumi->cd();
+    cEleSignal_vs_Lumi->SaveAs(daqfile);
+    
+    TCanvas * cBusyCells_vs_Lumi = new TCanvas ("cBusyCells_vs_Lumi", "cBusyCells_vs_Lumi", 600, 500);
     gOptimalBusyCells_vs_Lumi[0]->Draw("ALE");
     gOptimalBusyCells_vs_Lumi[0]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
     gOptimalBusyCells_vs_Lumi[0]->GetYaxis()->SetTitle("BusyCells");
@@ -1305,8 +1166,13 @@ void SiPM_OV()
     gPad->SetGridy();
     leg->Draw();
     
+    outdaq = Form("%sBusyCells_vs_Lumi.png", output_folder.c_str());
+    daqfile = outdaq.c_str();
+    cBusyCells_vs_Lumi->cd();
+    cBusyCells_vs_Lumi->SaveAs(daqfile);
+    
 
-    TCanvas * cDCR_vs_Lumi = new TCanvas ("cDCR_vs_Lumi", "cDCR_vs_Lumi", 700, 600);
+    TCanvas * cDCR_vs_Lumi = new TCanvas ("cDCR_vs_Lumi", "cDCR_vs_Lumi", 600, 500);
     gDCR_vs_Lumi[0]->Draw("ALE");
     gDCR_vs_Lumi[0]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
     gDCR_vs_Lumi[0]->GetYaxis()->SetTitle("DCR / SiPM [GHz]");
@@ -1322,8 +1188,13 @@ void SiPM_OV()
     gPad->SetGridy();
     leg->Draw();
     
-    TCanvas * cCTR_vs_Lumi = new TCanvas ("cCTR_vs_Lumi", "cCTR_vs_Lumi", 700, 600);
+    outdaq = Form("%sDCR_vs_Lumi.png", output_folder.c_str());
+    daqfile = outdaq.c_str();
+    cDCR_vs_Lumi->cd();
+    cDCR_vs_Lumi->SaveAs(daqfile);
     
+    
+    TCanvas * cCTR_vs_Lumi = new TCanvas ("cCTR_vs_Lumi", "cCTR_vs_Lumi", 600, 500);    
     gOptimalCTR_vs_Lumi[0]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
     gOptimalCTR_vs_Lumi[0]->GetYaxis()->SetTitle("Time resolution [ps]");
     gOptimalCTR_vs_Lumi[0]->GetXaxis()->SetTitleSize(0.05);
@@ -1383,7 +1254,7 @@ void SiPM_OV()
  
     for (int iSiPM = 0; iSiPM< NSIPM; iSiPM++)
     {
-//         leg2->AddEntry(gCTR_vs_Lumi[iSiPM], Form("constant bias = +2V OV (%s)", sipm_name[iSiPM].c_str()), "lp");    
+//         leg2->AddEntry(gCTR_vs_Lumi[iSiPM], Form("constant bias = +1.5V OV (%s)", sipm_name[iSiPM].c_str()), "lp");    
 //         leg2->AddEntry(gOptimalCTR_vs_Lumi[iSiPM], Form("optimized bias (%s)", sipm_name[iSiPM].c_str()), "lp");
 //         leg2->AddEntry(gOptimalCTR_Double_vs_Lumi[iSiPM], Form("optimized bias / sqrt(2) [double read-out] (%s)", sipm_name[iSiPM].c_str()), "lp");
         
@@ -1394,9 +1265,14 @@ void SiPM_OV()
     }
     leg2->Draw();
     
+    outdaq = Form("%sTimeRes_vs_Lumi.png", output_folder.c_str());
+    daqfile = outdaq.c_str();
+    cCTR_vs_Lumi->cd();
+    cCTR_vs_Lumi->SaveAs(daqfile);
+    
     
     int myFillStyle = 3004;
-    TCanvas * cCTR_vs_Lumi_Ave = new TCanvas ("cCTR_vs_Lumi_Ave", "cCTR_vs_Lumi_Ave", 700, 600);
+    TCanvas * cCTR_vs_Lumi_Ave = new TCanvas ("cCTR_vs_Lumi_Ave", "cCTR_vs_Lumi_Ave", 600, 500);
     
     gOptimalCTR_TP_vs_Lumi_Ave->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
     gOptimalCTR_TP_vs_Lumi_Ave->GetYaxis()->SetTitle("Time resolution [ps]");
@@ -1473,12 +1349,17 @@ void SiPM_OV()
     leg2->AddEntry(gOptimalCTR_Double2x2_vs_Lumi_Ave, "TDR Option B (2x2 mm^{2} SiPM)", "flpe");
     leg2->Draw();
     
+    outdaq = Form("%sTimeResAve_vs_Lumi.png", output_folder.c_str());
+    daqfile = outdaq.c_str();
+    cCTR_vs_Lumi_Ave->cd();
+    cCTR_vs_Lumi_Ave->SaveAs(daqfile);
+    
     //PLOTS for CDR/TDR
         
     TCanvas * cCTR_vs_Lumi_brokedown[NSIPM];
     for (int iSiPM = 0; iSiPM < NSIPM; iSiPM++)
     {
-        cCTR_vs_Lumi_brokedown[iSiPM] = new TCanvas (Form("cCTR_vs_Lumi_brokedown_%s", sipm_name[iSiPM].c_str()), Form("cCTR_vs_Lumi_brokedown_%s", sipm_name[iSiPM].c_str()), 700, 600);    
+        cCTR_vs_Lumi_brokedown[iSiPM] = new TCanvas (Form("cCTR_vs_Lumi_brokedown_%s", sipm_name[iSiPM].c_str()), Form("cCTR_vs_Lumi_brokedown_%s", sipm_name[iSiPM].c_str()), 600, 500);    
         gOptimalCTR_vs_Lumi[iSiPM]->Draw("ALPE"); 
         gOptimalCTR_vs_Lumi[iSiPM]->SetTitle(sipm_name[iSiPM].c_str());
         gOptimalCTR_vs_Lumi[iSiPM]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
@@ -1554,6 +1435,12 @@ void SiPM_OV()
         
         gPad->SetGridy();
         
+        outdaq = Form("%sTimeResSingleBrokeDown_vs_Lumi_%s.png", output_folder.c_str(), sipm_name[iSiPM].c_str());
+        daqfile = outdaq.c_str();
+        cCTR_vs_Lumi_brokedown[iSiPM]->cd();
+        cCTR_vs_Lumi_brokedown[iSiPM]->SaveAs(daqfile);
+        
+        
     }
     
     
@@ -1561,7 +1448,7 @@ void SiPM_OV()
     TCanvas * cCTR_vs_Lumi_brokedown_sqrt2[NSIPM];
     for (int iSiPM = 0; iSiPM < NSIPM; iSiPM++)
     {
-        cCTR_vs_Lumi_brokedown_sqrt2[iSiPM] = new TCanvas (Form("cCTR_vs_Lumi_brokedown_sqrt2_%s", sipm_name[iSiPM].c_str()), Form("cCTR_vs_Lumi_brokedown_sqrt2_%s", sipm_name[iSiPM].c_str()), 700, 600);    
+        cCTR_vs_Lumi_brokedown_sqrt2[iSiPM] = new TCanvas (Form("cCTR_vs_Lumi_brokedown_sqrt2_%s", sipm_name[iSiPM].c_str()), Form("cCTR_vs_Lumi_brokedown_sqrt2_%s", sipm_name[iSiPM].c_str()), 600, 500);    
 //         gOptimalCTR_vs_Lumi[iSiPM]->Draw("ALE"); 
         gOptimalCTR_vs_Lumi[iSiPM]->SetTitle(sipm_name[iSiPM].c_str());
         gOptimalCTR_vs_Lumi[iSiPM]->GetXaxis()->SetTitle("Integrated Luminosity [fb^{-1}]");
@@ -1642,19 +1529,116 @@ void SiPM_OV()
         
         gPad->SetGridy();
         
+        outdaq = Form("%sTimeResDoubleBrokeDown_vs_Lumi_%s.png", output_folder.c_str(), sipm_name[iSiPM].c_str());
+        daqfile = outdaq.c_str();
+        cCTR_vs_Lumi_brokedown_sqrt2[iSiPM]->cd();
+        cCTR_vs_Lumi_brokedown_sqrt2[iSiPM]->SaveAs(daqfile);
+        
     }
     
-//     TFile * fileOutput = new TFile ("output_root/bar_performance_1.root", "RECREATE");
-//      TFile * fileOutput = new TFile ("output_root/bar_performance_2.root", "RECREATE");
-//     TFile * fileOutput = new TFile ("output_root/bar_performance_3.root", "RECREATE");
-    TFile * fileOutput = new TFile ("output_root/bar_performance_temp.root", "RECREATE");
+    
     fileOutput->cd();
+    
+    
+    for (int iSiPM = 0; iSiPM<NSIPM; iSiPM++)
+    {
+        funcCurrent[iSiPM]->Write();
+//         funcDCR[iSiPM]->Write();
+        funcENC[iSiPM]->Write();
+        funcGain[iSiPM]->Write();
+        funcPDE[iSiPM]->Write();
+        funcPDE_vsWL[iSiPM]->Write();
+        
+        gDCR_vs_OV[iSiPM]->SetName(Form("gDCR_vs_OV_%d", iSiPM));
+//         gGain_vs_OV[iSiPM]->SetName(Form("gGain_vs_OV_%d", iSiPM));
+//         gPDE_vs_OV[iSiPM]->SetName(Form("gPDE_vs_OV_%d", iSiPM));
+//         gCurrent_vs_OV[iSiPM]->SetName(Form("gCurrent_vs_OV_%d", iSiPM));
+    
+    
+        gPDE_vs_Lumi[iSiPM]     ->SetName(Form("gPDE_vs_Lumi_%d", iSiPM));
+        gCurrent_vs_Lumi[iSiPM] ->SetName(Form("gCurrent_vs_Lumi_%d", iSiPM));
+        gGain_vs_Lumi[iSiPM]    ->SetName(Form("gGain_vs_Lumi_%d", iSiPM));
+        gDCR_vs_Lumi[iSiPM]     ->SetName(Form("gDCR_vs_Lumi_%d", iSiPM));
+        gPower_vs_Lumi[iSiPM]   ->SetName(Form("gPower_vs_Lumi_%d", iSiPM));
+        gCTR_vs_Lumi[iSiPM]     ->SetName(Form("gCTR_vs_Lumi_%d", iSiPM));
+        gOV_vs_Lumi[iSiPM]      ->SetName(Form("gOV_vs_Lumi_%d", iSiPM));
+        gSignal_vs_Lumi[iSiPM]  ->SetName(Form("gSignal_vs_Lumi_%d", iSiPM));
+        gEleSignal_vs_Lumi[iSiPM]   ->SetName(Form("gEleSignal_vs_Lumi_%d", iSiPM));
+        gBusyCells_vs_Lumi[iSiPM]   ->SetName(Form("gBusyCells_vs_Lumi_%d", iSiPM));
+        
+        
+        gOptimalPDE_vs_Lumi[iSiPM]   ->SetName(Form("gOptimalPDE_vs_Lumi_%d", iSiPM));
+        gOptimalDCR_vs_Lumi[iSiPM]   ->SetName(Form("gOptimalDCR_vs_Lumi_%d", iSiPM));
+        gOptimalOV_vs_Lumi[iSiPM]    ->SetName(Form("gOptimalOV_vs_Lumi_%d", iSiPM));
+//         gOptimalSNR_vs_Lumi[iSiPM]   ->SetName(Form("gOptimalSNR_vs_Lumi_%d", iSiPM));
+        gOptimalCTR_vs_Lumi[iSiPM]   ->SetName(Form("gOptimalCTR_vs_Lumi_%d", iSiPM));
+//         gOptimalCTR2x2_vs_Lumi[iSiPM]->SetName(Form("gOptimalCTR2x2_vs_Lumi_%d", iSiPM));
+        gOptimalCTR_Double_vs_Lumi[iSiPM]   ->SetName(Form("gOptimalCTR_Double_vs_Lumi_%d", iSiPM));
+//         gOptimalCTR_Double2x2_vs_Lumi[iSiPM]->SetName(Form("gOptimalCTR_Double2x2_vs_Lumi_%d", iSiPM));
+        gOptimalCTR_TP_vs_Lumi[iSiPM]       ->SetName(Form("gOptimalCTR_TP_vs_Lumi_%d", iSiPM));
+        gOptimalCTR_TP3x3_vs_Lumi[iSiPM]   ->SetName(Form("gOptimalCTR_TP3x3_vs_Lumi_%d", iSiPM));
+        gOptimalCTR_TP2x2_vs_Lumi[iSiPM]   ->SetName(Form("gOptimalCTR_TP2x2_vs_Lumi_%d", iSiPM));
+        gOptimalCurrent_vs_Lumi[iSiPM]   ->SetName(Form("gOptimalCurrent_vs_Lumi_%d", iSiPM));
+        gOptimalPower_vs_Lumi[iSiPM]    ->SetName(Form("gOptimalPower_vs_Lumi_%d", iSiPM));
+        gOptimalSignal_vs_Lumi[iSiPM]   ->SetName(Form("gOptimalSignal_vs_Lumi_%d", iSiPM));
+        gOptimalEleSignal_vs_Lumi[iSiPM] ->SetName(Form("gOptimalEleSignal_vs_Lumi_%d", iSiPM));
+        gOptimalBusyCells_vs_Lumi[iSiPM] ->SetName(Form("gOptimalBusyCells_vs_Lumi_%d", iSiPM));
+        
+        gOptimalPhotJitter_vs_Lumi[iSiPM] ->SetName(Form("gOptimalPhotJitter_vs_Lumi_%d", iSiPM));
+        gOptimalDCRJitter_vs_Lumi[iSiPM]  ->SetName(Form("gOptimalDCRJitter_vs_Lumi_%d", iSiPM));
+        
+        gOptimalPhotJitter_vs_Lumi_double[iSiPM] ->SetName(Form("gOptimalPhotJitter_vs_Lumi_double_%d", iSiPM));
+        gOptimalDCRJitter_vs_Lumi_double[iSiPM]  ->SetName(Form("gOptimalDCRJitter_vs_Lumi_double_%d", iSiPM));
+        
+    
+        gDCR_vs_OV[iSiPM]->Write();
+//         gGain_vs_OV[iSiPM]->Write();
+//         gPDE_vs_OV[iSiPM]->Write();
+//         gCurrent_vs_OV[iSiPM]->Write();
+    
+    
+        gPDE_vs_Lumi[iSiPM]     ->Write();
+        gCurrent_vs_Lumi[iSiPM] ->Write();
+        gGain_vs_Lumi[iSiPM]    ->Write();
+        gDCR_vs_Lumi[iSiPM]     ->Write();
+        gPower_vs_Lumi[iSiPM]   ->Write();
+        gCTR_vs_Lumi[iSiPM]     ->Write();
+        gOV_vs_Lumi[iSiPM]      ->Write();
+        gSignal_vs_Lumi[iSiPM]  ->Write();
+        gEleSignal_vs_Lumi[iSiPM]   ->Write();
+        gBusyCells_vs_Lumi[iSiPM]   ->Write();
+        
+        
+        gOptimalPDE_vs_Lumi[iSiPM]   ->Write();
+        gOptimalDCR_vs_Lumi[iSiPM]   ->Write();
+        gOptimalOV_vs_Lumi[iSiPM]    ->Write();
+//         gOptimalSNR_vs_Lumi[iSiPM]   ->Write();
+        gOptimalCTR_vs_Lumi[iSiPM]   ->Write();
+//         gOptimalCTR2x2_vs_Lumi[iSiPM]->Write();
+        gOptimalCTR_Double_vs_Lumi[iSiPM]   ->Write();
+//         gOptimalCTR_Double2x2_vs_Lumi[iSiPM]->Write();
+//         gOptimalCTR_TP_vs_Lumi[iSiPM]       ->Write();
+//         gOptimalCTR_TP3x3_vs_Lumi[iSiPM]   ->Write();
+//         gOptimalCTR_TP2x2_vs_Lumi[iSiPM]   ->Write();
+        gOptimalCurrent_vs_Lumi[iSiPM]   ->Write();
+        gOptimalPower_vs_Lumi[iSiPM]    ->Write();
+        gOptimalSignal_vs_Lumi[iSiPM]   ->Write();
+        gOptimalEleSignal_vs_Lumi[iSiPM] ->Write();
+        gOptimalBusyCells_vs_Lumi[iSiPM] ->Write();
+        
+        gOptimalPhotJitter_vs_Lumi[iSiPM] ->Write();
+        gOptimalDCRJitter_vs_Lumi[iSiPM]  ->Write();
+        
+        gOptimalPhotJitter_vs_Lumi_double[iSiPM] ->Write();
+        gOptimalDCRJitter_vs_Lumi_double[iSiPM]  ->Write();
+    }
+    
     
     gOptimalCTR_Double_vs_Lumi_Ave->SetName("gOptimalCTR_Double_vs_Lumi_Ave");
     gOptimalCTR_Double_vs_Lumi_Ave->Write();
     
-    gOptimalCTR_TP_vs_Lumi_Ave->SetName("gOptimalCTR_TP_vs_Lumi_Ave");
-    gOptimalCTR_TP_vs_Lumi_Ave->Write();
+//     gOptimalCTR_TP_vs_Lumi_Ave->SetName("gOptimalCTR_TP_vs_Lumi_Ave");
+//     gOptimalCTR_TP_vs_Lumi_Ave->Write();
     
     gOptimalCTR_vs_Lumi_Ave->SetName("gOptimalCTR_vs_Lumi_Ave");
     gOptimalCTR_vs_Lumi_Ave->Write();
