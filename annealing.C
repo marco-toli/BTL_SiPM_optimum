@@ -7,14 +7,14 @@ void annealing()
     TLegend * leg;
     
     float NLUMI  = 400; //lumi/year
-    float TOTDCR = 4.5*2.6; //DCR/ yearly lumi without annealing
+//     float TOTDCR = 5.4*2.6; //DCR/ yearly lumi without annealing @2.0V
+    float TOTDCR = 4.2*2.6; //DCR/ yearly lumi without annealing @1.5V
     
     int NYEARS   = 10;
     int NDAYS    = 365;
     int NDAYSRUN = 243;
-//     int NDAYSRUN = NDAYS-14;
 //     int DAYSRT   = 14;
-    int DAYSRT= 14;
+    int DAYSRT= 14*2;
 //     int DAYSRT= NDAYS-NDAYSRUN;
     
         
@@ -29,7 +29,7 @@ void annealing()
     fraction[0] = 0.21; taus[0] = 0.4;
     fraction[1] = 0.36; taus[1] = 13;
     fraction[2] = 0.17; taus[2] = 600;
-    fraction[3] = 0.26; taus[3] = 1e5;
+    fraction[3] = 0.26; taus[3] = 1e4;
     
     TF1 * funcAnnealingRT_tot = new TF1 ("funcAnnealingRT_tot", "[0]*exp(-x/[1]) + [2]*exp(-x/[3]) + [4]*exp(-x/[5]) + [6]*exp(-x/[7])", 0.05, 10000);
     for (int iCenter = 0; iCenter< NCENTERS; iCenter++)
@@ -168,7 +168,7 @@ void annealing()
     funcAnnealingRT_tot->SetLineColor(kBlack);
 //     funcAnnealingRT_tot->GetYaxis()->SetRangeUser(0.0001, 1);
     funcAnnealingRT_tot->SetMinimum(0.01);
-    funcAnnealingRT_tot->SetMaximum(2.);
+    funcAnnealingRT_tot->SetMaximum(3.);
     funcAnnealingRT_tot->GetXaxis()->SetRangeUser(0.1, 1000);
     funcAnnealingRT_tot->GetXaxis()->SetLimits(0.1, 1000);
     
@@ -213,7 +213,7 @@ void annealing()
     gDCR_tot->GetYaxis()->SetTitle("DCR [GHz]");
     gDCR_tot->GetXaxis()->SetTitleSize(0.05);
     gDCR_tot->GetYaxis()->SetTitleSize(0.05);
-    gDCR_tot->GetYaxis()->SetRangeUser(0,140);
+    gDCR_tot->GetYaxis()->SetRangeUser(0,160);
     gDCR_tot->Draw("same ALPE");
     
     for (int iCenter = 0; iCenter < NCENTERS; iCenter++)
@@ -274,6 +274,8 @@ void annealing()
 //     gPad->SetLogy();
     
     TFile * fileOutput = new TFile ("output_root/annealing_scenario_temp.root", "RECREATE");
+//     TFile * fileOutput = new TFile ("output_root/annealing_scenario_1.root", "RECREATE");
+//     TFile * fileOutput = new TFile ("output_root/annealing_scenario_2.root", "RECREATE");
     fileOutput->cd();
     
     gDCR_naive->SetName("gDCR_naive");
