@@ -280,19 +280,17 @@ void SiPM_OV()
     float maxPower_TP   = 40;    //mW / channel
     int nChannels_TP    = 250000; //total BTL number of channels
     
-    float Edep          = 5.5; // MeV average slant thickness for muons 0.8-10 GeV
+    float Edep_CMS      = 4.5; // MeV average slant thickness for muons 0.8-10 GeV
     float LY            = 40000;
-    float LCE           = 0.15;  
+    float LCE           = 0.17;  
     
-    float Edep_at_TB    = 3.0;
+    float Edep_at_TB    = 2.6;
     float PDE_at_TB     = 0.37;
-    float LO            = LY*LCE*Edep;        // reference light output assumed for the time resolution "sigma_phot_ref"
-    float LO_red        = LY*LCE*Edep/1.4;    // assuming 3x3 mm² SiPM on 11.5x11.5 tile
+    float LO            = LY*LCE*Edep_CMS;        // reference light output assumed for the time resolution "sigma_phot_ref"
+    float LO_red        = LY*LCE*Edep_CMS/1.4;    // assuming 3x3 mm² SiPM on 11.5x11.5 tile
     
     float sigma_phot_TB = 43;
-//     float alpha         = 0.5;
-//     float sigma_phot_ref= sigma_phot_TB*pow(3/Edep, alpha);
-    float sigma_phot_ref= sigma_phot_TB*sqrt(3/Edep);
+    float sigma_phot_ref= sigma_phot_TB*sqrt(Edep_at_TB/Edep_CMS);
     
     float Nphe_DCR_ref  = 9000; // re
     float DCR_ref       = 20;
