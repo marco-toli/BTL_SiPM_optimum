@@ -115,12 +115,12 @@ void SiPM_OV()
     }
     
     
-//     std::string output_folder = "./public_optimum_OV_sqrtN/";
-    std::string output_folder = "./output/public_optimum_OV_N/";
+    std::string output_folder = "./public_optimum_OV_sqrtN/";
+//     std::string output_folder = "./output/public_optimum_OV_N/";
 //     std::string output_folder = "./temp/";
     std::string output_sipm_input = "./output/public_inputs/";
 
-    TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_4monthsRT.root", "RECREATE");    
+    TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_4monthsRT_sqrt.root", "RECREATE");    
 //     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_1.root", "RECREATE");
 //     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_2.root", "RECREATE");
 //     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_3.root", "RECREATE");
@@ -282,7 +282,7 @@ void SiPM_OV()
     
     float Edep_CMS      = 4.5; // MeV average slant thickness for muons 0.8-10 GeV
     float LY            = 40000;
-    float LCE           = 0.17;  
+    float LCE           = 0.15;  
     
     float Edep_at_TB    = 2.6;
     float PDE_at_TB     = 0.37;
@@ -625,7 +625,7 @@ void SiPM_OV()
             double sigma_phot = sigma_phot_ref  *sqrt(LO*PDE_at_TB/signal);                    //ps - empirical at 40% PDE                        
             
             double sigma_DCR = sigma_DCR_20*sqrt(DCR/DCR_ref)*sqrt(Nphe_DCR_ref/signal); // ps - empirical at 9000 phe            
-//             double sigma_DCR = 34*sqrt(DCR/20)*9000/signal; // 1/N
+//             double sigma_DCR = sigma_DCR_20*sqrt(DCR/DCR_ref)*Nphe_DCR_ref/signal; // 1/N
             
             double CTR = sqrt(pow(sigma_phot,2) + pow(sigma_DCR,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
             
@@ -718,30 +718,30 @@ void SiPM_OV()
                 double sigma_phot_2x2_bar   = sigma_phot_ref*sqrt(LO*PDE_at_TB/temp_signal_2x2_bar);                    //ps - empirical at 40% PDE
                 
                 //1/sqrt(Nphe) assumption
-                /*
+                
                 double sigma_DCR_TP4x4      = sigma_DCR_20*sqrt(temp_DCR_TP4x4/DCR_ref) *sqrt(Nphe_DCR_ref/temp_signal);
                 double sigma_DCR_TP3x3      = sigma_DCR_20*sqrt(temp_DCR/DCR_ref)       *sqrt(Nphe_DCR_ref/temp_signal_3x3);
                 double sigma_DCR_TP2x2      = sigma_DCR_20*sqrt(temp_DCR_2x2/DCR_ref)   *sqrt(Nphe_DCR_ref/temp_signal_TP2x2);
                 double sigma_DCR            = sigma_DCR_20*sqrt(temp_DCR/DCR_ref)       *sqrt(Nphe_DCR_ref/temp_signal);
                 double sigma_DCR_2x2        = sigma_DCR_20*sqrt(temp_DCR_2x2/DCR_ref)   *sqrt(Nphe_DCR_ref/temp_signal_2x2);
                 double sigma_DCR_2x2_bar    = sigma_DCR_20*sqrt(temp_DCR_2x2/DCR_ref)   *sqrt(Nphe_DCR_ref/temp_signal_2x2_bar);
-                */
                 
+                /*
                 //1/Nphe assumption
-                double sigma_DCR_TP4x4   = 34*sqrt(temp_DCR_TP4x4/20)*9000/temp_signal;
-                double sigma_DCR_TP3x3   = 34*sqrt(temp_DCR/20)*9000/temp_signal_3x3;
-                double sigma_DCR_TP2x2   = 34*sqrt(temp_DCR_2x2/20)*9000/temp_signal_TP2x2;
-                double sigma_DCR         = 34*sqrt(temp_DCR/20)*9000/temp_signal;
-                double sigma_DCR_2x2     = 34*sqrt(temp_DCR_2x2/20)*9000/temp_signal_2x2;
-                double sigma_DCR_2x2_bar = 34*sqrt(temp_DCR_2x2/20)*9000/temp_signal_2x2_bar;
-                
+                double sigma_DCR_TP4x4   = sigma_DCR_20*sqrt(temp_DCR_TP4x4/DCR_ref)*Nphe_DCR_ref/temp_signal;
+                double sigma_DCR_TP3x3   = sigma_DCR_20*sqrt(temp_DCR/DCR_ref)*Nphe_DCR_ref/temp_signal_3x3;
+                double sigma_DCR_TP2x2   = sigma_DCR_20*sqrt(temp_DCR_2x2/DCR_ref)*Nphe_DCR_ref/temp_signal_TP2x2;
+                double sigma_DCR         = sigma_DCR_20*sqrt(temp_DCR/DCR_ref)*Nphe_DCR_ref/temp_signal;
+                double sigma_DCR_2x2     = sigma_DCR_20*sqrt(temp_DCR_2x2/DCR_ref)*Nphe_DCR_ref/temp_signal_2x2;
+                double sigma_DCR_2x2_bar = sigma_DCR_20*sqrt(temp_DCR_2x2/DCR_ref)*Nphe_DCR_ref/temp_signal_2x2_bar;
+                */
                 
                 double temp_CTR_TP4x4       = sqrt(pow(sigma_phot,2) + pow(sigma_DCR_TP4x4,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
                 double temp_CTR_TP3x3       = sqrt(pow(sigma_phot_3x3,2) + pow(sigma_DCR,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
                 double temp_CTR_TP2x2       = sqrt(pow(sigma_phot_TP2x2,2) + pow(sigma_DCR_TP2x2,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
                 double temp_CTR             = sqrt(pow(sigma_phot,2) + pow(sigma_DCR,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
                 double temp_CTR_2x2         = sqrt(pow(sigma_phot_2x2,2) + pow(sigma_DCR_2x2,2)  + pow(sigma_digi,2) +  pow(sigma_elect,2) +  pow(sigma_clock,2));
-                double temp_CTR_2x2_bar         = sqrt(pow(sigma_phot_2x2_bar/sqrt(2),2) + pow(sigma_DCR_2x2_bar/sqrt(2),2) + pow(sigma_digi/sqrt(2),2) +  pow(sigma_elect/sqrt(2),2) +  pow(sigma_clock,2) );
+                double temp_CTR_2x2_bar     = sqrt(pow(sigma_phot_2x2_bar/sqrt(2),2) + pow(sigma_DCR_2x2_bar/sqrt(2),2) + pow(sigma_digi/sqrt(2),2) +  pow(sigma_elect/sqrt(2),2) +  pow(sigma_clock,2) );
                 
                 
                 if (true
