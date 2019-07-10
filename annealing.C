@@ -9,14 +9,54 @@ void annealing()
     float NLUMI  = 400; //lumi/year
 //     float TOTDCR = 5.4*2.6; //DCR/ yearly lumi without annealing @2.0V
     float TOTDCR = 4.2*2.6; //DCR/ yearly lumi without annealing @1.5V
+
+    float DCR_per_FB = 35*2.6/4000.*2.5/2;    //S12572-015C at 1.5V
+//     float DCR_per_FB = 70*2.6/4000.*2.5/2;    //HDR2 at 1.5V
+//     float DCR_per_FB = 40*2.6/4000.;    //FBK at 1.5V
     
-    int NYEARS   = 10;
-    int NDAYS    = 365;
+    
+    int NYEARS = 12;
+//     int NDAYS    = 365;
     int NDAYSRUN = 243;
 //     int DAYSRT   = 14;
     int DAYSRT= 14*2;
 //     int DAYSRT= NDAYS-NDAYSRUN;
     
+    
+    TGraphErrors * gLumi_vs_Time = new TGraphErrors ("lumi_vs_time_ultimate.txt");
+    TGraphErrors * gIntLumi_vs_Time = new TGraphErrors ();
+    
+    Double_t myInstLumi;
+    Double_t myMonth;
+    Double_t myIntLumi = 0.;
+    float convert_coeff =  1./ 1.0e24 * (30.*24.*60.*60.)*1.0e-15/4.16;
+    gIntLumi_vs_Time->SetPoint(0, 0, 0);
+    
+    for (int iPoint = 0; iPoint<gLumi_vs_Time->GetN(); iPoint++)
+    {
+        gLumi_vs_Time->GetPoint(iPoint, myMonth, myInstLumi);
+        myIntLumi += myInstLumi *convert_coeff;
+        std::cout << "iPoint = " << iPoint << " :: myMonth = " << myMonth << " :: myInstLumi = " << myInstLumi << " :: myIntLumi = " << myIntLumi << std::endl;
+        gIntLumi_vs_Time->SetPoint(iPoint, myMonth+1, myIntLumi);
+        
+    }
+    
+    TCanvas * cLumi_vs_Time = new TCanvas ("cLumi_vs_Time", "cLumi_vs_Time", 600, 500);
+    cLumi_vs_Time->cd();
+    gLumi_vs_Time->GetXaxis()->SetTitle("Time [months]");
+    gLumi_vs_Time->GetYaxis()->SetTitle("Luminosity [cm^{-2} s^{-1}]");
+    gLumi_vs_Time->SetMarkerStyle(20);
+    gLumi_vs_Time->SetMarkerColor(kRed+1);
+    gLumi_vs_Time->Draw("APE");
+        
+    
+    TCanvas * cIntLumi_vs_Time = new TCanvas ("cIntLumi_vs_Time", "cIntLumi_vs_Time", 600, 500);
+    cIntLumi_vs_Time->cd();
+    gIntLumi_vs_Time->GetXaxis()->SetTitle("Time [months]");
+    gIntLumi_vs_Time->GetYaxis()->SetTitle("Integrated luminosity [fb^{-1}]");
+//     gIntLumi_vs_Time->SetMarkerStyle(20);
+//     gIntLumi_vs_Time->SetMarkerColor(kRed+1);
+    gIntLumi_vs_Time->Draw("ALPE");
         
     float inst_lumi = (float) NLUMI/NDAYSRUN ;
     
@@ -29,7 +69,7 @@ void annealing()
     fraction[0] = 0.21; taus[0] = 0.4;
     fraction[1] = 0.36; taus[1] = 13;
     fraction[2] = 0.17; taus[2] = 600;
-    fraction[3] = 0.26; taus[3] = 1e4;
+    fraction[3] = 0.26; taus[3] = 1e6;
     
     TF1 * funcAnnealingRT_tot = new TF1 ("funcAnnealingRT_tot", "[0]*exp(-x/[1]) + [2]*exp(-x/[3]) + [4]*exp(-x/[5]) + [6]*exp(-x/[7])", 0.05, 10000);
     for (int iCenter = 0; iCenter< NCENTERS; iCenter++)
@@ -60,9 +100,10 @@ void annealing()
     
     TGraphErrors * gLumi = new TGraphErrors ();
     TGraphErrors * gDCR_tot = new TGraphErrors ();
+    TGraphErrors * gDCR_tot_vs_Lumi = new TGraphErrors ();
     
     
-    float int_DCR = 0;
+    float int_DCR = 0.;
     float inst_DCR[NCENTERS];
     float DCR[NCENTERS];
     float DCR_0[NCENTERS];
@@ -79,73 +120,127 @@ void annealing()
         
     
     TGraphErrors * gDCR_naive = new TGraphErrors ();
+    TGraphErrors * gDCR_naive_vs_Lumi = new TGraphErrors ();
     TGraphErrors * gDCR_anneal_naive = new TGraphErrors ();
     TGraphErrors * gDCR_hard_naive = new TGraphErrors ();
     
     float int_lumi = 0;
     
-
-
-    for (int iYear = 0; iYear < NYEARS; iYear++)
-    {
-        for (int iDay = 0; iDay < NDAYS; iDay++)
-        {
-            if (DAYSRT>NDAYS-NDAYSRUN) 
-            {
-                std::cout << "IMPOSSIBLE!!! -->  DAYSRT>NDAYS-NDAYSRUN" << std::endl;
-                break;
-            }
+    const int NTEMP = 4;
+    int temp[NTEMP] = {21, 49, 60, 80};//, 106};
     
-            
-//            std::cout << "inst_lumi = " << inst_lumi << std::endl;
-            if (iDay <NDAYSRUN) // in cold + irradiation
-            {
-                int_lumi += inst_lumi;
-                int_DCR  += (float) inst_lumi*TOTDCR/NLUMI;
+    TF1 * funcMollAnnealingT[NTEMP];
+    float alphaI[NTEMP] = {1.23, 1.28, 1.26, 1.13};//, 0.};
+    float tauI[NTEMP] = {1.4e4, 260, 94, 9};//, 1.};
+    float alpha0[NTEMP] = {7.07, 5.36, 4.87, 4.23};//, 3.38};
+    float beta[NTEMP] = {3.29, 3.11, 3.16, 2.83};//, 2.97};
+    float t0[NTEMP] = {1., 1., 1., 1.};//, 1.};
+    
+    
+    TGraphErrors *gAlphaI = new TGraphErrors ();
+    TGraphErrors *gTauI = new TGraphErrors ();
+    TGraphErrors *gAlpha0 = new TGraphErrors ();
+    TGraphErrors *gBeta = new TGraphErrors ();
+    
+    for (int iTemp = 0; iTemp < NTEMP;  iTemp++)
+    {
+        gAlphaI->SetPoint(iTemp , temp[iTemp], alphaI[iTemp] );
+        gTauI->SetPoint(iTemp , temp[iTemp], tauI[iTemp] );
+        gAlpha0->SetPoint(iTemp , temp[iTemp], alpha0[iTemp] );
+        gBeta->SetPoint(iTemp , temp[iTemp], beta[iTemp] );
+        
+    }
+    
+    TCanvas * cAlphaI = new TCanvas ("cAlphaI", "cAlphaI", 600, 500);
+    gAlphaI->Draw("ALPE");
+    
+    TCanvas * cTauI = new TCanvas ("cTauI", "cTauI", 600, 500);
+    gTauI->Draw("ALPE");
+    
+    TCanvas * cAlpha0 = new TCanvas ("cAlpha0", "cAlpha0", 600, 500);
+    gAlpha0->Draw("ALPE");
+    
+    TCanvas * cBeta = new TCanvas ("cBeta", "cBeta", 600, 500);
+    gBeta->Draw("ALPE");
+    
+    
+    for (int iTemp = 0; iTemp<NTEMP; iTemp++)
+    {
+        funcMollAnnealingT[iTemp] = new TF1 ("funcMollAnnealingT", "[0]*exp(-x/[1]) + [2] - [3]*log(x/[4])", t0[iTemp], 1e6 );
+        funcMollAnnealingT[iTemp]->SetParameters(alphaI[iTemp]*1.0e-17, tauI[iTemp], alpha0[iTemp]*1.0e-17, beta[iTemp]*1.0e-18, t0[iTemp]);
+    }
+    
+    
+    //35 deg
+    float myTemp = 30;
+    TF1 * funcMollAnnealing35 = new TF1 ("funcMollAnnealing35", "[0]*exp(-x/[1]) + [2] - [3]*log(x/[4])", t0[0], 1e6 );
+    funcMollAnnealing35->SetParameters(gAlphaI->Eval(myTemp)*1.0e-17, gTauI->Eval(myTemp), gAlpha0->Eval(myTemp)*1.0e-17, gBeta->Eval(myTemp)*1.0e-18, t0[0]);
+    
+
+    TFile * fileOutput = new TFile ("output/output_root/annealing_scenarios/annealing_scenario_30.root", "RECREATE");  
+    
+    int NDAYS = 150*30;    //days
+    int anneal_day = 0;
+    
+    for (int iDay = 0; iDay < NDAYS; iDay++)
+    {
+        //            std::cout << "inst_lumi = " << inst_lumi << std::endl;
+            if (gLumi_vs_Time->Eval(int(iDay/30)) != 0) // in cold + irradiation
+            {                
+                int_DCR  += gLumi_vs_Time->Eval(int(iDay/30))*convert_coeff/30.*DCR_per_FB;
                 
                 for (int iCenter = 0; iCenter < NCENTERS; iCenter++)
                 {                                        
-                    DCR[iCenter]      += inst_DCR[iCenter]; 
+                    DCR[iCenter]      += gLumi_vs_Time->Eval(int(iDay/30))*convert_coeff/30.*fraction[iCenter]*DCR_per_FB; 
                     DCR_0[iCenter]     = DCR[iCenter];
-                }                                    
+                }                                
+                anneal_day = 0;
             }
-            else if (iDay>=NDAYS-DAYSRT) // no irradiation + RT annealing
+            else  // no irradiation + RT annealing
             {
-                int anneal_day = iDay -NDAYS+DAYSRT;
+                anneal_day ++;// iDay -NDAYS+DAYSRT;
                 
                 for (int iCenter = 0; iCenter < NCENTERS; iCenter++)
                 {
-                    DCR[iCenter] =  DCR_0[iCenter]*funcAnnealingRT[iCenter]->Eval(anneal_day)/funcAnnealingRT[iCenter]->Eval(0); 
-//                     std::cout << "annealing day# " << anneal_day << " :: anneal_coeff = " << funcAnnealingRT[iCenter]->Eval(anneal_day)/funcAnnealingRT[iCenter]->Eval(0) << " :: total DCR[" << iCenter << "] = "  << DCR[iCenter] << std::endl;
+                    float annealing_coeff; 
+//                     if (anneal_day>1) annealing_coeff = funcAnnealingRT[iCenter]->Eval(anneal_day)/funcAnnealingRT[iCenter]->Eval(anneal_day);        // standard 21°C annealing
+//                     else              annealing_coeff = funcAnnealingRT[iCenter]->Eval(anneal_day)/funcAnnealingRT[iCenter]->Eval(anneal_day);    // 2 days of fast annealing at 50°C                    
+                    
+//                     DCR[iCenter] =  DCR_0[iCenter]*annealing_coeff;                
+                    
+//                     DCR[iCenter] =  DCR_0[iCenter]*funcAnnealingRT[iCenter]->Eval(anneal_day)/funcAnnealingRT[iCenter]->Eval(0) * funcMollAnnealingT[3]->Eval(anneal_day*24*60)/funcMollAnnealingT[0]->Eval(anneal_day*24*60); 
+                    DCR[iCenter] =  DCR_0[iCenter]*funcAnnealingRT[iCenter]->Eval(anneal_day)/funcAnnealingRT[iCenter]->Eval(0) * funcMollAnnealing35->Eval(anneal_day*24*60)/funcMollAnnealingT[0]->Eval(anneal_day*24*60); 
+//                     DCR[iCenter] =  DCR_0[iCenter]*funcAnnealingRT[iCenter]->Eval(anneal_day)/funcAnnealingRT[iCenter]->Eval(0) * funcMollAnnealingT[0]->Eval(anneal_day*24*60)/funcMollAnnealingT[0]->Eval(anneal_day*24*60); 
+//                      DCR[iCente0r] =  DCR_0[iCenter]*funcAnnealingRT[iCenter]->Eval(anneal_day)/1.8/funcAnnealingRT[iCenter]->Eval(0); 
+                    std::cout << "annealing day# " << anneal_day << " :: annealing_coeff = " << annealing_coeff << " :: total DCR[" << iCenter << "] = "  << DCR[iCenter] << std::endl;
+//                     DCR_0[iCenter] = DCR[iCenter];
                 }
                 
             }
             
-            
-            
-            int time = iDay + iYear*NDAYS;
-            
-            gLumi-> SetPoint(time, time, int_lumi/100);
+            gLumi-> SetPoint(iDay, iDay, int_lumi/100);
             
             
             float tot_DCR = 0;
             for (int iCenter = 0; iCenter < NCENTERS; iCenter++)
             {
                 tot_DCR+= DCR[iCenter];
-                gDCR[iCenter] -> SetPoint(time, time, DCR[iCenter]);
+                gDCR[iCenter] -> SetPoint(iDay, iDay, DCR[iCenter]);
             }
             
             
             
-            gDCR_tot -> SetPoint(time, time, tot_DCR);
-            gDCR_naive -> SetPoint(time, time, int_DCR);
-            gDCR_anneal_naive -> SetPoint(time, time, int_DCR*funcAnnealingRT_tot->Eval(100));
-            gDCR_hard_naive -> SetPoint(time, time, int_DCR*funcAnnealingRT_tot->Eval(10000));
+            gDCR_tot -> SetPoint(iDay, iDay, tot_DCR);            
+            gDCR_tot_vs_Lumi -> SetPoint(iDay, gIntLumi_vs_Time->Eval(iDay/30.), tot_DCR);
             
-        }
+            gDCR_naive -> SetPoint(iDay, iDay, int_DCR);            
+            gDCR_naive_vs_Lumi -> SetPoint(iDay, gIntLumi_vs_Time->Eval(iDay/30.), int_DCR);
+            
+            gDCR_anneal_naive -> SetPoint(iDay, iDay, int_DCR*funcAnnealingRT_tot->Eval(100));
+//             gDCR_hard_naive -> SetPoint(iDay, iDay, int_DCR*funcAnnealingRT_tot->Eval(10000));
+        
         
     }
-    
     
     TCanvas * cIntLumi = new TCanvas ("cIntLumi", "cIntLumi", 600, 600);
     gLumi->Draw("ALPE");
@@ -224,6 +319,8 @@ void annealing()
     }
 
     gDCR[3]->Draw("same LPE");
+    gDCR[3]->SetLineColor(kBlue+1);
+    gDCR[3]->SetMarkerColor(kBlue+1);
     
     gLumi->SetLineColor(kViolet);
     gLumi->SetMarkerColor(kViolet);
@@ -268,20 +365,73 @@ void annealing()
     leg ->AddEntry(gDCR_tot, "2 weeks / year", "lp");    
     leg ->AddEntry(gDCR_anneal_naive, "100 days after 2x10^{14} neq/cm^{2}", "lp");
     leg ->AddEntry(gDCR[3], "Unrecoverable component", "lp");
-    
     leg->Draw();
     
 //     gPad->SetLogy();
     
-    TFile * fileOutput = new TFile ("output_root/annealing_scenario_temp.root", "RECREATE");
+    
+    
+    
+    TCanvas * cIntDCR_vsLumi = new TCanvas ("cIntDCR_vsLumi", "cIntDCR_vsLumi", 600, 600);
+    gDCR_tot_vs_Lumi->SetLineColor(kBlack);
+    gDCR_tot_vs_Lumi->SetMarkerColor(kBlack);
+    gDCR_tot_vs_Lumi->SetLineWidth(2);
+    gDCR_tot_vs_Lumi->GetXaxis()->SetTitle("Integrated luminosity [fb^{-1}]");
+    gDCR_tot_vs_Lumi->GetYaxis()->SetTitle("DCR [GHz]");
+    gDCR_tot_vs_Lumi->GetXaxis()->SetTitleSize(0.05);
+    gDCR_tot_vs_Lumi->GetYaxis()->SetTitleSize(0.05);
+    gDCR_tot_vs_Lumi->GetYaxis()->SetRangeUser(0,160);
+    
+    
+    gDCR_tot_vs_Lumi->Draw("ALPE");
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
+
+  
+//     TFile * fileOutput = new TFile ("output/output_root/annealing_scenarios/annealing_scenario_20.root", "RECREATE");
+//          TFile * fileOutput = new TFile ("output/output_root/annealing_scenarios/annealing_scenario_30.root", "RECREATE");
+//      TFile * fileOutput = new TFile ("output/output_root/annealing_scenarios/annealing_scenario_50.root", "RECREATE");
+//        TFile * fileOutput = new TFile ("output/output_root/annealing_scenarios/annealing_scenario_50_short.root", "RECREATE");
+//      TFile * fileOutput = new TFile ("output/output_root/annealing_scenarios/annealing_scenario_60.root", "RECREATE");
+
+//     TFile * fileOutput = new TFile ("output/output_root/annealing_scenarios/annealing_scenario_80.root", "RECREATE");
+    
 //     TFile * fileOutput = new TFile ("output_root/annealing_scenario_1.root", "RECREATE");
 //     TFile * fileOutput = new TFile ("output_root/annealing_scenario_2.root", "RECREATE");
     fileOutput->cd();
     
     gDCR_naive->SetName("gDCR_naive");
     gDCR_naive->Write();
+    
+    gDCR_naive_vs_Lumi->SetName("gDCR_naive_vs_Lumi");
+    gDCR_naive_vs_Lumi->Write();
+    
     gDCR_tot->SetName("gDCR_tot");
     gDCR_tot->Write();
+    gDCR_tot_vs_Lumi->SetName("gDCR_tot_vs_Lumi");
+    gDCR_tot_vs_Lumi->Write();
     gDCR_anneal_naive->SetName("gDCR_anneal_naive");
     gDCR_anneal_naive->Write();
     for (int iCenter = 0; iCenter<NCENTERS; iCenter++)
