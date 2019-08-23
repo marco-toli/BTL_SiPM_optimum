@@ -367,7 +367,7 @@ void SiPM_OV()
     
 //     float maxPower      = 50000;    //mW / channel    
 //     float maxPower      = 50;    //mW / channel    
-    float maxPower      = 70;    //mW / channel    
+    float maxPower      = 50;    //mW / channel    
     int nChannels       = 500000; //total BTL number of channels
     
     float maxPower_TP   = 40;    //mW / channel
