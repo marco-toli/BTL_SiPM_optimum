@@ -27,9 +27,9 @@ void SiPM_OV()
     RC[2] = 8.;
     
     
+
 //     float newFLUKA_fluence = 1.;
-    float newFLUKA_fluence = 1.;
-//     float newFLUKA_fluence = 25./20.;
+    float newFLUKA_fluence = 1.27;  //1.9*4/3/2.1
     
     
     float QE_loss[NSIPM]; //Quantum Efficiency loss after 2e14
@@ -144,8 +144,11 @@ void SiPM_OV()
     
 //     TFile * fileOutput = new TFile ("./temperature_scenarios/bar_performance_annealing_4monthsRT_T-40.root", "RECREATE");    
 //     TFile * fileOutput = new TFile ("./temperature_scenarios/bar_performance_annealing_4monthsRT_T-35.root", "RECREATE");    
-//     TFile * fileOutput = new TFile ("./temperature_scenarios/bar_performance_annealing_4monthsRT_T-30.root", "RECREATE");    
-//     TFile * fileOutput = new TFile ("./temperature_scenarios/bar_performance_annealing_4monthsRT_T-25.root", "RECREATE");   
+     TFile * fileOutput = new TFile ("./temperature_scenarios/bar_performance_annealing_4monthsRT_T-30.root", "RECREATE");    
+    
+//         TFile * fileOutput = new TFile ("./temperature_scenarios/bar_performance_annealing_4monthsRT_T-40_safety1.5x.root", "RECREATE");    
+//     TFile * fileOutput = new TFile ("./temperature_scenarios/bar_performance_annealing_4monthsRT_T-35_safety1.5x.root", "RECREATE");    
+//      TFile * fileOutput = new TFile ("./temperature_scenarios/bar_performance_annealing_4monthsRT_T-30_safety1.5x.root", "RECREATE");    
     
 //     TFile * fileOutput = new TFile ("./radiation_scenarios/temp_nominal_rad_20e13_noPowerLimit.root", "RECREATE");    
 //     TFile * fileOutput = new TFile ("./radiation_scenarios/temp_nominal_rad_25e13_noPowerLimit.root", "RECREATE");
@@ -154,7 +157,7 @@ void SiPM_OV()
 //     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_1.root", "RECREATE");
 //     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_2.root", "RECREATE");
 //     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_annealing_3.root", "RECREATE");
-    TFile * fileOutput = new TFile ("./output/output_root/bar_performance_temp.root", "RECREATE");
+//     TFile * fileOutput = new TFile ("./output/output_root/bar_performance_temp.root", "RECREATE");
     
 //      TFile * fileOutput = new TFile ("./output/output_root/annealing_scenarios/bar_performance_annealing_80_fullmodel.root", "RECREATE");
 //     TFile * fileOutput = new TFile ("./output/output_root/annealing_scenarios/bar_performance_annealing_30.root", "RECREATE");
@@ -170,7 +173,7 @@ void SiPM_OV()
     TGraphErrors * gLumi_to_DCR_annealing;
     TGraphErrors * gLumi_to_DCR_noannealing;    
     
-    TFile * annealingInput = new TFile ("output/output_root/annealing_scenarios/annealing_scenario_80.root", "READ");                    
+    TFile * annealingInput = new TFile ("output/output_root/annealing_scenarios/annealing_scenario_20.root", "READ");                    
     gLumi_to_DCR_annealing = (TGraphErrors*) annealingInput->Get("gDCR_tot_vs_Lumi");        
     gLumi_to_DCR_noannealing = (TGraphErrors*) annealingInput->Get("gDCR_naive_vs_Lumi");        
     
@@ -352,6 +355,7 @@ void SiPM_OV()
 
     
     float MIP_rate = 2.5e6;   //MHz
+//     float MIP_rate = 0;   //MHz
     
 
 
@@ -362,7 +366,8 @@ void SiPM_OV()
     Vbr[2] = 34.2;       //                               --> 37.7     
     
 //     float maxPower      = 50000;    //mW / channel    
-    float maxPower      = 50;    //mW / channel    
+//     float maxPower      = 50;    //mW / channel    
+    float maxPower      = 70;    //mW / channel    
     int nChannels       = 500000; //total BTL number of channels
     
     float maxPower_TP   = 40;    //mW / channel
@@ -715,10 +720,10 @@ void SiPM_OV()
         {
             
             //to include annealing model and HL-LHC scenario
-            float current = funcCurrent[iSiPM]->Eval(bias_ov) * gLumi_to_DCR_annealing->Eval(iLumi) / gLumi_to_DCR_noannealing->Eval(iLumi) * (iLumi*sipm_area *2.5);            //in uA
+//             float current = funcCurrent[iSiPM]->Eval(bias_ov) * gLumi_to_DCR_annealing->Eval(iLumi) / gLumi_to_DCR_noannealing->Eval(iLumi) * (iLumi*sipm_area *2.6);            //in uA
             
             //for fixed DCR increase
-//             float current = iLumi*funcCurrent[iSiPM]->Eval(bias_ov)*sipm_area;            //in uA --
+            float current = iLumi*funcCurrent[iSiPM]->Eval(bias_ov)*sipm_area;            //in uA --
             float DCR     = current/1e6 / (1.6e-19) / funcGain[iSiPM]->Eval(bias_ov)/1e9;  //current from uA to A
             
             double busy_cells = DCR/sipm_area*RC[iSiPM]*2./pow(1000./spad_size[iSiPM],2);
@@ -791,10 +796,10 @@ void SiPM_OV()
                 
                 //3x3 mm² SiPM
                 //to include annealing model and HL-LHC scenario
-                float temp_current = funcCurrent[iSiPM]->Eval(temp_ov) * gLumi_to_DCR_annealing->Eval(iLumi)  / gLumi_to_DCR_noannealing->Eval(iLumi)* (iLumi*sipm_area *2.5);            //in uA
+//                 float temp_current = funcCurrent[iSiPM]->Eval(temp_ov) * gLumi_to_DCR_annealing->Eval(iLumi)  / gLumi_to_DCR_noannealing->Eval(iLumi)* (iLumi*sipm_area *2.6);            //in uA
             
                 //for fixed DCR increase            
-//                 float temp_current     = iLumi*funcCurrent[iSiPM]->Eval(temp_ov)*sipm_area;                
+                float temp_current     = iLumi*funcCurrent[iSiPM]->Eval(temp_ov)*sipm_area;                
                 float temp_DCR         = temp_current/1e6 / (1.6e-19) / funcGain[iSiPM]->Eval(temp_ov)/1e9;                                
                 float temp_power       = temp_current*(temp_ov+Vbr[iSiPM])/1e3; //converting current to Ampere
                 
@@ -1838,6 +1843,12 @@ void SiPM_OV()
         leg2->AddEntry(gClock_double, "Clock", "lp");
         leg2->Draw();
         
+        TLatex latex;
+        latex.SetTextSize(0.05);
+        latex.SetTextAlign(13);  //align at top
+        latex.SetTextFont(42);  //helvetica, 82 for courier, 62 for helvetica bold
+        latex.DrawLatex(3000,113,Form("T = %.0f#circC", my_temp));
+        
         
         gPad->SetGridy();
         cCTR_vs_Lumi_brokedown_sqrt2[iSiPM]->cd();
@@ -1847,6 +1858,9 @@ void SiPM_OV()
         outdaq = Form("%sTimeResDoubleBrokeDown_vs_Lumi_%s.pdf", output_folder.c_str(), sipm_name[iSiPM].c_str());
         daqfile = outdaq.c_str();        
         cCTR_vs_Lumi_brokedown_sqrt2[iSiPM]->SaveAs(daqfile);
+        
+        
+           
         
     }
         
