@@ -153,16 +153,39 @@ void annealing()
     
     TCanvas * cAlphaI = new TCanvas ("cAlphaI", "cAlphaI", 600, 500);
     gAlphaI->Draw("ALPE");
+    gAlphaI->SetMarkerStyle(20);
+    gAlphaI->GetXaxis()->SetTitle("T [#circC]");
+    gAlphaI->GetYaxis()->SetTitle("#alpha_{I}");
+    gAlphaI->GetXaxis()->SetTitleSize(0.05);
+    gAlphaI->GetYaxis()->SetTitleSize(0.05);
+    gAlphaI->GetYaxis()->SetRangeUser(0.5, 2.5);
     
     TCanvas * cTauI = new TCanvas ("cTauI", "cTauI", 600, 500);
     gTauI->Draw("ALPE");
+    gTauI->SetMarkerStyle(20);
+    gTauI->GetXaxis()->SetTitle("T [#circC]");
+    gTauI->GetYaxis()->SetTitle("#tau_{I}");
+    gTauI->GetXaxis()->SetTitleSize(0.05);
+    gTauI->GetYaxis()->SetTitleSize(0.05);
+//     gTauI->GetYaxis()->SetRangeUser(0.5, .5);
     
     TCanvas * cAlpha0 = new TCanvas ("cAlpha0", "cAlpha0", 600, 500);
     gAlpha0->Draw("ALPE");
+    gAlpha0->SetMarkerStyle(20);
+    gAlpha0->GetXaxis()->SetTitle("T [#circC]");
+    gAlpha0->GetYaxis()->SetTitle("#alpha_{0}");
+    gAlpha0->GetXaxis()->SetTitleSize(0.05);
+    gAlpha0->GetYaxis()->SetTitleSize(0.05);
+//     gAlpha0->GetYaxis()->SetRangeUser(0.5, .5);
     
     TCanvas * cBeta = new TCanvas ("cBeta", "cBeta", 600, 500);
     gBeta->Draw("ALPE");
-    
+    gBeta->SetMarkerStyle(20);
+    gBeta->GetXaxis()->SetTitle("T [#circC]");
+    gBeta->GetYaxis()->SetTitle("#beta");
+    gBeta->GetXaxis()->SetTitleSize(0.05);
+    gBeta->GetYaxis()->SetTitleSize(0.05);
+    gBeta->GetYaxis()->SetRangeUser(0.5, 5);
     
     for (int iTemp = 0; iTemp<NTEMP; iTemp++)
     {
